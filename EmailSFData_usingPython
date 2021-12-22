@@ -1,0 +1,91 @@
+#!/usr/bin/env /usr/bin/python3
+
+from datetime import datetime, timedelta
+import time, os
+import snowflake.connector
+import pandas as pd
+import argparse
+import datetime
+import sys
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from smtplib import SMTP
+import smtplib
+import sys
+import win32com.client
+from smtplib import SMTP
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+
+from pretty_html_table import build_table
+
+message = MIMEMultipart()
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--SFFDRUser', type=str)
+parser.add_argument('--SFFDRPwd', type=str)
+args = parser.parse_args()
+
+start = """<html>
+                <body>
+                    <strong>The Current Status is as Below \n :</strong><br />"""
+
+
+end = """      
+ <p> </p>
+  <p> </p>
+   <p> </p>
+This is an auto generated email.Please do not reply.
+ </body>
+            </html>"""
+
+
+
+
+print("Creating Connection to Snowflake")
+
+ctx = snowflake.connector.connect(
+        user='' + args.SFFDRUser + '',
+        password='' + args.SFFDRPwd + '',
+        account='youorg.us-east-1',
+    )
+
+
+cs = ctx.cursor()
+
+cs.execute("USE warehouse urwarehouse")
+cs.execute("Use database urdb")
+cs.execute("USE schema urschema")
+
+print("Connection Successful")
+
+
+sql = """ select id from urdb.urschema.tablename"""
+#df = pd.read_sql_query(sql, ctx)
+#df.head()
+#ctx.close()
+
+cs.execute(sql)
+#result = cs.fetchall()
+df = pd.DataFrame.from_records(iter(cs),columns=[x[0] for x in cs.description])
+print(df)
+ctx.close()
+output = build_table(df, 'blue_light')
+
+message.attach(output)
+print("connection closed, script end.. Thanks ")
+print("Completed Successfully")
+print (output)
+outlook = win32com.client.Dispatch('outlook.application')
+mail = outlook.CreateItem(0)
+mail.To = 'xyz@yourorg.com'
+mail.Subject = 'Curren Status'
+mail.HTMLBody = start+output+end
+#msg.HTMLBody = output.format(table=output)
+#mail.Body =   output.format(table=output)
+mail.Send()#This is also working
+#send_mail(output)
+
+
